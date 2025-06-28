@@ -264,9 +264,14 @@ def update_corp_vs_corp(_):
 
     player_df = load_game_data()
     box_fig = px.box(player_df, x='Corporation', y='Score', color='Player', points='all',
-                     color_discrete_map={"SB": "blue", "AV": "orange"},
-                     title='Score Distribution by Corporation and Player')
-    box_fig.update_layout(height=800, width=1000)
+                    color_discrete_map={"SB": "blue", "AV": "orange"},
+                    title='Score Distribution by Corporation and Player')
+
+    box_fig.update_layout(
+        height=800,
+        width=1200,
+        xaxis={'categoryorder': 'category ascending'}
+    )
 
     return fig_count, fig_winrate, box_fig
 

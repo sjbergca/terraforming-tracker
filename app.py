@@ -52,7 +52,7 @@ app.layout = html.Div([
 
     dcc.Upload(
         id='upload-data',
-        children=html.Div(['\ud83d\udcc4 Drag and Drop or ', html.A('Select a file')]),
+        children=html.Div(['📄 Drag and Drop or ', html.A('Select a file')]),
         style={
             'width': '100%',
             'height': '60px',
@@ -82,11 +82,12 @@ app.layout = html.Div([
             dcc.Graph(id='score-diff-pdf'),
             dcc.Graph(id='score-diff-cdf'),
             dcc.Graph(id='combined-total-pdf'),
-            dcc.Graph(id='combined-total-cdf'),
+            dcc.Graph(id='combined-total-cdf')
         ]),
         dcc.Tab(label='Corp vs Corp Matchups', children=[
             dcc.Graph(id='corp-matchup-count'),
-            dcc.Graph(id='corp-matchup-winrate')
+            dcc.Graph(id='corp-matchup-winrate'),
+            dcc.Graph(id='corp-violin-plot')
         ])
     ])
 ])
@@ -179,6 +180,42 @@ def update_summary_panel(_):
     return fig, summary
 
 @app.callback(
+    Output('corp-matchup-count', 'figure'),
+    Output('corp-matchup-winrate', 'figure'),
+    Output('corp-violin-plot', 'figure'),
+    Input('data-refresh-flag', 'data')
+)
+def update_corp_vs_corp(_):
+    df = pd.read_excel("games/games.xlsx", sheet_name="restart_Mar_2025", engine="openpyxl")
+    df = df.dropna(subset=['SB Corp.', 'AV. Corp.', 'Winner'])
+
+    count_matrix = df.groupby(['SB Corp.', 'AV. Corp.']).size().unstack(fill_value=0)
+    fig_count = px.imshow(count_matrix,
+                          labels=dict(x="AV Corp.", y="SB Corp.", color="Game Count"),
+                          title="Corp vs Corp Matchup Count",
+                          height=800, width=800)
+
+    win_df = df.copy()
+    win_df['SB Win'] = (df['Winner'] == 'SB').astype(int)
+    winrate_matrix = win_df.pivot_table(index='SB Corp.', columns='AV. Corp.', values='SB Win', aggfunc='mean')
+    fig_winrate = px.imshow(winrate_matrix,
+                            labels=dict(x="AV Corp.", y="SB Corp.", color="SB Win Rate"),
+                            title="Corp vs Corp Win Rate (SB Perspective)",
+                            color_continuous_scale='RdBu', zmin=0, zmax=1,
+                            height=800, width=800)
+
+    records = []
+    for _, row in df.iterrows():
+        records.append({'Corporation': row['SB Corp.'], 'Score': row['SB Score'], 'Player': 'SB'})
+        records.append({'Corporation': row['AV. Corp.'], 'Score': row['AV Score'], 'Player': 'AV'})
+    long_df = pd.DataFrame(records)
+
+    fig_violin = px.violin(long_df, x="Corporation", y="Score", color="Player", box=True, points="all")
+    fig_violin.update_layout(title="Score Distribution by Corporation", height=700)
+
+    return fig_count, fig_winrate, fig_violin
+
+@app.callback(
     Output('score-distribution', 'figure'),
     Output('score-cdf', 'figure'),
     Output('score-diff-pdf', 'figure'),
@@ -225,32 +262,6 @@ def update_score_graphs(bins, _):
     total_cdf_fig.update_layout(title='CDF of Combined Total Score', xaxis_title='Total Score', yaxis_title='Cumulative Density')
 
     return pdf_fig, cdf_fig, diff_pdf_fig, diff_cdf_fig, total_pdf_fig, total_cdf_fig
-
-@app.callback(
-    Output('corp-matchup-count', 'figure'),
-    Output('corp-matchup-winrate', 'figure'),
-    Input('data-refresh-flag', 'data')
-)
-def update_corp_vs_corp(_):
-    df = pd.read_excel("games/games.xlsx", sheet_name="restart_Mar_2025", engine="openpyxl")
-    df = df.dropna(subset=['SB Corp.', 'AV. Corp.', 'Winner'])
-
-    count_matrix = df.groupby(['SB Corp.', 'AV. Corp.']).size().unstack(fill_value=0)
-    fig_count = px.imshow(count_matrix,
-                          labels=dict(x="AV Corp.", y="SB Corp.", color="Game Count"),
-                          title="Corp vs Corp Matchup Count",
-                          height=800, width=800)
-
-    win_df = df.copy()
-    win_df['SB Win'] = (df['Winner'] == 'SB').astype(int)
-    winrate_matrix = win_df.pivot_table(index='SB Corp.', columns='AV. Corp.', values='SB Win', aggfunc='mean')
-    fig_winrate = px.imshow(winrate_matrix,
-                            labels=dict(x="AV Corp.", y="SB Corp.", color="SB Win Rate"),
-                            title="Corp vs Corp Win Rate (SB Perspective)",
-                            color_continuous_scale='RdBu', zmin=0, zmax=1,
-                            height=800, width=800)
-
-    return fig_count, fig_winrate
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8050))

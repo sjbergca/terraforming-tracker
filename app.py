@@ -67,6 +67,7 @@ app.layout = html.Div([
     ),
 
     dcc.Store(id='data-refresh-flag', data=True),
+    html.Div(id='latest-date-display', style={'textAlign': 'center', 'marginBottom': '20px'}),
     html.Hr(),
 
     dcc.Tabs([
@@ -105,6 +106,15 @@ def save_uploaded_file(contents, filename):
         with open("games/games.xlsx", "wb") as f:
             f.write(decoded)
     return True
+
+@app.callback(
+    Output('latest-date-display', 'children'),
+    Input('data-refresh-flag', 'data')
+)
+def display_latest_game_date(_):
+    df = load_game_data()
+    latest_date = pd.to_datetime(df['Date']).max()
+    return f"Most Recent Game Recorded: {latest_date.strftime('%B %d, %Y')}"
 
 @app.callback(
     Output('cumulative-winrate-graph', 'figure'),
@@ -254,6 +264,7 @@ def update_corp_vs_corp(_):
 
     player_df = load_game_data()
     box_fig = px.box(player_df, x='Corporation', y='Score', color='Player', points='all',
+                     color_discrete_map={"SB": "blue", "AV": "orange"},
                      title='Score Distribution by Corporation and Player')
     box_fig.update_layout(height=800, width=1000)
 

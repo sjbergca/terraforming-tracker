@@ -1,0 +1,331 @@
+import os
+import shutil
+import tempfile
+import time
+import logging
+import pandas as pd
+import numpy as np
+from dash import Dash, dcc, html, Input, Output
+import plotly.graph_objects as go
+import plotly.express as px
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
+# --- Load and transform the data ---
+def load_game_data():
+    source_path = r"C:/Users/sjber/OneDrive/Personal/Games/TMF/01_MulitPlayer_Tracking_Dec2022.xlsx"
+    dest_path = r"D:/Research/terraforming_tracker/games/games.xlsx"
+    attempts = 5
+
+    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+
+    for attempt in range(attempts):
+        try:
+            logging.info(f"Attempt {attempt + 1}: Copying file from {source_path} to {dest_path}")
+            shutil.copyfile(source_path, dest_path)
+            logging.info("File copied successfully.")
+            break
+        except PermissionError as e:
+            logging.error(f"Attempt {attempt + 1} failed: {e}")
+            if attempt < attempts - 1:
+                time.sleep(1)
+            else:
+                raise
+
+    df = pd.read_excel(dest_path, sheet_name="restart_Mar_2025",engine="openpyxl")
+    df = df.dropna(subset=['Game #', 'SB Score', 'AV Score'])
+
+    records = []
+    for _, row in df.iterrows():
+        records.append({
+            'Game': row['Game #'],
+            'Date': row['Date'],
+            'Map': row['Map'],
+            'Player': 'SB',
+            'Corporation': row['SB Corp.'],
+            'Score': row['SB Score'],
+            'Winner': row['Winner'] == 'SB'
+        })
+        records.append({
+            'Game': row['Game #'],
+            'Date': row['Date'],
+            'Map': row['Map'],
+            'Player': 'AV',
+            'Corporation': row['AV. Corp.'],
+            'Score': row['AV Score'],
+            'Winner': row['Winner'] == 'AV'
+        })
+
+    return pd.DataFrame(records)
+
+
+def compute_pdf_cdf(series, bins=30):
+    counts, bin_edges = np.histogram(series, bins=bins, density=True)
+    cdf = np.cumsum(counts) * np.diff(bin_edges)
+    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+    return bin_centers, counts, cdf
+
+
+# --- Build the app ---
+app = Dash(__name__)
+app.title = "Terraforming Mars Tracker"
+
+app.layout = html.Div([
+    html.H1("Terraforming Mars Game Tracker"),
+
+    html.Hr(),
+    html.H2("Player Summary Panel"),
+    dcc.Graph(id='cumulative-winrate-graph'),
+    html.Div(id='summary-stats', style={'marginTop': '20px'}),
+
+    html.Hr(),
+    html.H2("Matchup Stats"),
+    dcc.Graph(id='score-diff-graph'),
+    dcc.Graph(id='win-margin-hist'),
+
+    html.Hr(),
+    html.H2("Corporation Insights"),
+    dcc.Graph(id='corp-usage'),
+    dcc.Graph(id='corp-winrate'),
+    dcc.Graph(id='score-by-corp'),
+
+    html.Hr(),
+    html.H2("Corporation vs. Corporation Matchups"),
+    dcc.Graph(id='corp-matchup-count'),
+    dcc.Graph(id='corp-matchup-winrate'),
+
+    html.Hr(),
+    html.H2("Score Distributions"),
+    html.Div([
+        html.Label("Number of Bins:"),
+        dcc.Slider(id='bin-slider', min=5, max=100, step=1, value=30,
+                   marks={i: str(i) for i in range(10, 101, 10)},
+                   tooltip={"placement": "bottom", "always_visible": True})
+    ], style={'margin': '20px'}),
+
+    html.Div([
+        dcc.Graph(id='score-pdf', style={'display': 'inline-block', 'width': '48%'}),
+        dcc.Graph(id='score-cdf', style={'display': 'inline-block', 'width': '48%'})
+    ]),
+    html.Div([
+        dcc.Graph(id='diff-score-pdf', style={'display': 'inline-block', 'width': '48%'}),
+        dcc.Graph(id='diff-score-cdf', style={'display': 'inline-block', 'width': '48%'})
+    ]),
+    html.Div([
+        dcc.Graph(id='total-score-pdf', style={'display': 'inline-block', 'width': '48%'}),
+        dcc.Graph(id='total-score-cdf', style={'display': 'inline-block', 'width': '48%'})
+    ])
+])
+
+@app.callback(
+    Output('cumulative-winrate-graph', 'figure'),
+    Output('summary-stats', 'children'),
+    Input('cumulative-winrate-graph', 'id')
+)
+def update_summary_panel(_):
+    df = load_game_data()
+    df = df.sort_values('Game')
+
+    summary = []
+    fig_data = []
+
+    # Prepare win margin calculations
+    df_sb = df[df['Player'] == 'SB'].sort_values('Game')
+    df_av = df[df['Player'] == 'AV'].sort_values('Game')
+    sb_scores = df_sb['Score'].values
+    av_scores = df_av['Score'].values
+    margins = sb_scores - av_scores
+
+    for player in ['SB', 'AV']:
+        player_df = df[df['Player'] == player].sort_values('Game')
+        player_df['Win Count'] = player_df['Winner'].astype(int).cumsum()
+        player_df['Game #'] = player_df['Game']
+        player_df['Cumulative Win %'] = player_df['Win Count'] / range(1, len(player_df) + 1)
+
+        fig_data.append({
+            'x': player_df['Game #'],
+            'y': player_df['Cumulative Win %'],
+            'type': 'scatter',
+            'mode': 'lines+markers',
+            'name': player
+        })
+
+        total_games = len(player_df)
+        wins = player_df['Winner'].sum()
+        win_rate = round((wins / total_games) * 100, 1)
+        avg_score = round(player_df['Score'].mean(), 2)
+        median_score = round(player_df['Score'].median(), 2)
+        min_score = round(player_df['Score'].min(), 2)
+        max_score = round(player_df['Score'].max(), 2)
+
+        # Use precomputed margins
+        if player == 'SB':
+            win_margins = margins[df_sb['Winner'].values]
+            loss_margins = margins[~df_sb['Winner'].values]
+        else:
+            win_margins = -margins[df_av['Winner'].values]
+            loss_margins = -margins[~df_av['Winner'].values]
+
+        max_win_margin = round(win_margins.max(), 2) if len(win_margins) else None
+        max_loss_margin = round(loss_margins.min(), 2) if len(loss_margins) else None
+
+        summary.append(html.Div([
+            html.H4(f"{player} Summary"),
+            html.P(f"Total Games: {total_games}"),
+            html.P(f"Wins: {wins} ({win_rate}%)"),
+            html.P(f"Average Score: {avg_score}"),
+            html.P(f"Median Score: {median_score}"),
+            html.P(f"Min Score: {min_score}"),
+            html.P(f"Max Score: {max_score}"),
+            html.P(f"Largest Win Margin: {max_win_margin}"),
+            html.P(f"Worst Loss Margin: {max_loss_margin}")
+        ], style={'marginRight': '40px', 'display': 'inline-block'}))
+
+    fig = {
+        'data': fig_data,
+        'layout': {
+            'title': 'Cumulative Win % Over Time',
+            'yaxis': {'tickformat': '.0%', 'range': [0, 1]},
+            'xaxis': {'title': 'Game Number'}
+        }
+    }
+
+    return fig, summary
+
+
+
+@app.callback(
+    Output('score-diff-graph', 'figure'),
+    Output('win-margin-hist', 'figure'),
+    Input('score-diff-graph', 'id')
+)
+def update_matchup_stats(_):
+    df = pd.read_excel("games/games.xlsx", sheet_name="restart_Mar_2025",engine="openpyxl")
+    df = df.dropna(subset=['Game #', 'SB Score', 'AV Score'])
+
+    df['Score Diff'] = df['SB Score'] - df['AV Score']
+    df['Abs Diff'] = df['Score Diff'].abs()
+
+    fig_diff = px.line(df, x='Game #', y='Score Diff', markers=True,
+                       title='Score Differential Over Time',
+                       labels={'Score Diff': 'SB - AV'})
+
+    fig_hist = px.histogram(df, x='Abs Diff', nbins=10, title='Win Margin Distribution')
+
+    return fig_diff, fig_hist
+
+
+@app.callback(
+    Output('corp-usage', 'figure'),
+    Output('corp-winrate', 'figure'),
+    Output('score-by-corp', 'figure'),
+    Input('corp-usage', 'id')
+)
+def update_corp_insights(_):
+    df = load_game_data()
+
+    corp_counts = df['Corporation'].value_counts().reset_index()
+    corp_counts.columns = ['Corporation', 'Games Played']
+
+    win_rates = df[df['Winner'] == True].groupby('Corporation').size() / df.groupby('Corporation').size()
+    win_rates = win_rates.dropna().reset_index(name='Win Rate')
+
+    fig_usage = px.bar(corp_counts, x='Corporation', y='Games Played', title='Corporation Usage Frequency')
+    fig_winrate = px.bar(win_rates, x='Corporation', y='Win Rate', title='Corporation Win Rate',
+                         labels={'Win Rate': 'Win %'})
+    fig_winrate.update_yaxes(tickformat='.0%')
+
+    fig_score = px.box(df, x='Corporation', y='Score', title='Score Distribution by Corporation')
+
+    return fig_usage, fig_winrate, fig_score
+
+
+@app.callback(
+    Output('corp-matchup-count', 'figure'),
+    Output('corp-matchup-winrate', 'figure'),
+    Input('corp-matchup-count', 'id')
+)
+def update_corp_vs_corp(_):
+    df = pd.read_excel("games/games.xlsx", sheet_name="restart_Mar_2025", engine="openpyxl")
+    df = df.dropna(subset=['SB Corp.', 'AV. Corp.', 'Winner'])
+
+    count_matrix = df.groupby(['SB Corp.', 'AV. Corp.']).size().unstack(fill_value=0)
+    fig_count = px.imshow(count_matrix,
+                          labels=dict(x="AV Corp.", y="SB Corp.", color="Game Count"),
+                          title="Corp vs Corp Matchup Count")
+    fig_count.update_layout(
+        width=850,
+        height=850,
+        margin=dict(l=120, r=50, t=80, b=120)
+    )
+    fig_count.update_xaxes(tickangle=45)
+
+    win_df = df.copy()
+    win_df['SB Win'] = (df['Winner'] == 'SB').astype(int)
+    winrate_matrix = win_df.pivot_table(index='SB Corp.', columns='AV. Corp.', values='SB Win', aggfunc='mean')
+    fig_winrate = px.imshow(winrate_matrix,
+                            labels=dict(x="AV Corp.", y="SB Corp.", color="SB Win Rate"),
+                            title="Corp vs Corp Win Rate (SB Perspective)",
+                            color_continuous_scale='RdBu', zmin=0, zmax=1)
+    fig_winrate.update_layout(
+        width=850,
+        height=850,
+        margin=dict(l=120, r=50, t=80, b=120)
+    )
+    fig_winrate.update_xaxes(tickangle=45)
+
+    return fig_count, fig_winrate
+
+
+
+@app.callback(
+    Output('score-pdf', 'figure'),
+    Output('score-cdf', 'figure'),
+    Output('diff-score-pdf', 'figure'),
+    Output('diff-score-cdf', 'figure'),
+    Output('total-score-pdf', 'figure'),
+    Output('total-score-cdf', 'figure'),
+    Input('bin-slider', 'value')
+)
+def update_score_distributions(bins):
+    df = pd.read_excel("games/games.xlsx", sheet_name="restart_Mar_2025",engine="openpyxl")
+    df = df.dropna(subset=['SB Score', 'AV Score'])
+
+    df['Score Diff'] = df['SB Score'] - df['AV Score']
+    df['Total Score'] = df['SB Score'] + df['AV Score']
+
+    def overlay_plot(series_dict, title, y_label):
+        fig = go.Figure()
+        for label, series in series_dict.items():
+            x, pdf, cdf = compute_pdf_cdf(series, bins=bins)
+            y_data = pdf if y_label == 'pdf' else cdf
+            fig.add_trace(go.Scatter(x=x, y=y_data, mode='lines+markers', name=label))
+        fig.update_layout(title=title)
+        return fig
+
+    sb_scores = df['SB Score']
+    av_scores = df['AV Score']
+
+    score_pdf = overlay_plot({'SB': sb_scores, 'AV': av_scores}, "Score PDF", 'pdf')
+    score_cdf = overlay_plot({'SB': sb_scores, 'AV': av_scores}, "Score CDF", 'cdf')
+
+    def single_plot(series, title, y_label):
+        x, pdf, cdf = compute_pdf_cdf(series, bins=bins)
+        y_data = pdf if y_label == 'pdf' else cdf
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=x, y=y_data, mode='lines+markers'))
+        fig.update_layout(title=title)
+        return fig
+
+    diff_pdf = single_plot(df['Score Diff'], "Score Diff PDF", 'pdf')
+    diff_cdf = single_plot(df['Score Diff'], "Score Diff CDF", 'cdf')
+    total_pdf = single_plot(df['Total Score'], "Combined Score PDF", 'pdf')
+    total_cdf = single_plot(df['Total Score'], "Combined Score CDF", 'cdf')
+
+    return score_pdf, score_cdf, diff_pdf, diff_cdf, total_pdf, total_cdf
+
+
+# --- Run the app ---
+if __name__ == '__main__':
+    app.run(debug=True)

@@ -253,4 +253,5 @@ def update_corp_vs_corp(_):
     return fig_count, fig_winrate
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 8050))
+    app.run(host="0.0.0.0", port=port)

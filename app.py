@@ -208,13 +208,13 @@ def update_score_graphs(bins, _):
     av_centers, av_pdf, av_cdf = compute_pdf_cdf(df_av['Score'], bins)
 
     pdf_fig = go.Figure()
-    pdf_fig.add_trace(go.Scatter(x=sb_centers, y=sb_pdf, mode='lines', name='SB'))
-    pdf_fig.add_trace(go.Scatter(x=av_centers, y=av_pdf, mode='lines', name='AV'))
+    pdf_fig.add_trace(go.Scatter(x=sb_centers, y=sb_pdf, mode='lines', name='SB', line=dict(color='blue')))
+    pdf_fig.add_trace(go.Scatter(x=av_centers, y=av_pdf, mode='lines', name='AV', line=dict(color='orange')))
     pdf_fig.update_layout(title='PDF of Player Scores', xaxis_title='Score', yaxis_title='Density')
 
     cdf_fig = go.Figure()
-    cdf_fig.add_trace(go.Scatter(x=sb_centers, y=sb_cdf, mode='lines', name='SB'))
-    cdf_fig.add_trace(go.Scatter(x=av_centers, y=av_cdf, mode='lines', name='AV'))
+    cdf_fig.add_trace(go.Scatter(x=sb_centers, y=sb_cdf, mode='lines', name='SB', line=dict(color='blue')))
+    cdf_fig.add_trace(go.Scatter(x=av_centers, y=av_cdf, mode='lines', name='AV', line=dict(color='orange')))
     cdf_fig.update_layout(title='CDF of Player Scores', xaxis_title='Score', yaxis_title='Cumulative Density')
 
     diffs = df_sb['Score'].values - df_av['Score'].values

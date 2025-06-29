@@ -114,7 +114,10 @@ def save_uploaded_file(contents, filename):
 def display_latest_game_date(_):
     df = load_game_data()
     latest_date = pd.to_datetime(df['Date']).max()
-    return f"Most Recent Game Recorded: {latest_date.strftime('%B %d, %Y')}"
+    return html.Div([
+        html.Strong(f"Most Recent Game Recorded: {latest_date.strftime('%B %d, %Y')}",
+                    style={'fontSize': '18px'})
+    ])
 
 @app.callback(
     Output('cumulative-winrate-graph', 'figure'),
@@ -156,6 +159,17 @@ def update_summary_panel(_):
         min_score = round(player_df['Score'].min(), 2)
         max_score = round(player_df['Score'].max(), 2)
 
+        # Compute current win/loss streak
+        recent_results = player_df['Winner'].values[::-1]  # reverse the order to start from latest
+        streak_type = 'Win' if recent_results[0] else 'Loss'
+        streak_count = 0
+        for result in recent_results:
+            if result == recent_results[0]:
+                streak_count += 1
+            else:
+                break
+
+
         if player == 'SB':
             win_margins = margins[df_sb['Winner'].values]
             loss_margins = margins[~df_sb['Winner'].values]
@@ -175,7 +189,8 @@ def update_summary_panel(_):
             html.P(f"Min Score: {min_score}"),
             html.P(f"Max Score: {max_score}"),
             html.P(f"Largest Win Margin: {max_win_margin}"),
-            html.P(f"Worst Loss Margin: {max_loss_margin}")
+            html.P(f"Worst Loss Margin: {max_loss_margin}"),
+            html.P(f"Current Streak: {streak_count} {streak_type}{'s' if streak_count > 1 else ''}")
         ], style={'marginRight': '40px', 'display': 'inline-block'}))
 
     fig = {

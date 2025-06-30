@@ -470,7 +470,7 @@ def update_map_summary_table(_):
     return summary, columns
 """
     
-
+"""
 @app.callback(
     Output('corp-map-summary-table', 'children'),
     Input('data-refresh-flag', 'data')
@@ -508,7 +508,7 @@ def update_corp_map_summary(_):
             style_header={'fontWeight': 'bold'}
         )
     ])
-
+"""
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8050))

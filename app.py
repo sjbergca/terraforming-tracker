@@ -1,4 +1,5 @@
 import os
+import dash_table
 import base64
 import io
 import pandas as pd
@@ -89,6 +90,9 @@ app.layout = html.Div([
             dcc.Graph(id='corp-matchup-count'),
             dcc.Graph(id='corp-matchup-winrate'),
             dcc.Graph(id='corp-boxplot')
+        ]),
+        dcc.Tab(label='Corporation Summary Table', children=[
+            html.Div(id='corp-summary-table')
         ])
     ])
 ])
@@ -289,6 +293,49 @@ def update_corp_vs_corp(_):
     )
 
     return fig_count, fig_winrate, box_fig
+
+@app.callback(
+    Output('corp-summary-table', 'children'),
+    Input('data-refresh-flag', 'data')
+)
+def update_corp_summary_table(_):
+    df = load_game_data()
+
+    corp_summary = []
+    for corp in sorted(df['Corporation'].unique()):
+        row = {'Corporation': corp}
+        for player in ['SB', 'AV']:
+            player_df = df[(df['Corporation'] == corp) & (df['Player'] == player)]
+            games = len(player_df)
+            wins = player_df['Winner'].sum()
+            win_pct = round((wins / games) * 100, 1) if games else 0
+            row[f'{player} Games'] = games
+            row[f'{player} Wins'] = wins
+            row[f'{player} Win %'] = win_pct
+
+        both_df = df[df['Corporation'] == corp]
+        total_games = len(both_df)
+        total_wins = both_df['Winner'].sum()
+        overall_win_pct = round((total_wins / total_games) * 100, 1) if total_games else 0
+        row['Total Games'] = total_games
+        row['Total Wins'] = total_wins
+        row['Total Win %'] = overall_win_pct
+        corp_summary.append(row)
+
+    return dash_table.DataTable(
+        columns=[
+            {'name': col, 'id': col} for col in corp_summary[0].keys()
+        ],
+        data=corp_summary,
+        sort_action='native',
+        style_table={'overflowX': 'auto'},
+        style_cell={'textAlign': 'center'},
+        style_header={
+            'backgroundColor': 'rgb(230, 230, 230)',
+            'fontWeight': 'bold'
+        }
+    )
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8050))

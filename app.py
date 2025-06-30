@@ -92,7 +92,10 @@ app.layout = html.Div([
         ]),
         dcc.Tab(label='Corporation Summary Table', children=[
             html.Div(id='corp-summary-table')
-        ])
+        ]),
+        dcc.Tab(label='Raw Data', children=[
+            html.Div(id='raw-data-table')
+        ])        
     ])
 ])
 
@@ -121,6 +124,26 @@ def display_latest_game_date(_):
         html.Strong(f"Most Recent Game Recorded: {latest_date.strftime('%B %d, %Y')}",
                     style={'fontSize': '18px'})
     ])
+
+
+@app.callback(
+    Output('raw-data-table', 'children'),
+    Input('data-refresh-flag', 'data')
+)
+def update_raw_data_table(_):
+    df = load_game_data()
+
+    return dash_table.DataTable(
+        columns=[{"name": i, "id": i} for i in df.columns],
+        data=df.to_dict('records'),
+        sort_action="native",
+        filter_action="native",
+        page_action="native",
+        page_size=20,
+        style_table={'overflowX': 'auto'},
+        style_cell={'textAlign': 'center', 'minWidth': '100px'},
+        style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'}
+    )
 
 @app.callback(
     Output('cumulative-winrate-graph', 'figure'),

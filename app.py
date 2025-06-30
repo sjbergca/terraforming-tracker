@@ -423,6 +423,7 @@ def update_map_avg_score(_):
     fig.update_layout(yaxis_title='Score', xaxis_title='Map')
     return fig
 
+"""
 @app.callback(
     Output('map-summary-table', 'data'),
     Output('map-summary-table', 'columns'),
@@ -463,6 +464,8 @@ def update_map_summary_table(_):
 
     columns = [{"name": col, "id": col} for col in summary[0].keys()] if summary else []
     return summary, columns
+"""
+    
 
 @app.callback(
     Output('corp-map-summary-table', 'children'),

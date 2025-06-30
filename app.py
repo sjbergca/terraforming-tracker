@@ -132,7 +132,7 @@ def display_latest_game_date(_):
 def update_raw_data_table(_):
     df = pd.read_excel("games/games.xlsx", sheet_name="restart_Mar_2025", engine="openpyxl")
     df = df.dropna(subset=['Date', 'Map', 'SB Corp.', 'AV. Corp.', 'SB Score', 'AV Score'])
-
+    df['Date'] = pd.to_datetime(df['Date']).dt.date  #strime time from datetime
     df_display = df[['Date', 'Map', 'SB Corp.', 'AV. Corp.', 'SB Score', 'AV Score']]
 
     return dash_table.DataTable(
@@ -140,8 +140,7 @@ def update_raw_data_table(_):
         data=df_display.to_dict('records'),
         sort_action="native",
         filter_action="native",
-        page_action="native",
-        page_size=20,
+        page_action="none",
         style_table={'overflowX': 'auto'},
         style_cell={'textAlign': 'center', 'minWidth': '100px'},
         style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'}

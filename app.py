@@ -93,6 +93,25 @@ app.layout = html.Div([
         dcc.Tab(label='Corporation Summary Table', children=[
             html.Div(id='corp-summary-table')
         ]),
+        dcc.Tab(label='Map Insights', children=[
+            dcc.Graph(id='map-game-count'),
+            dcc.Graph(id='map-winrate'),
+            dcc.Graph(id='map-avg-score'),
+            html.H4("Map Summary Table", style={'marginTop': '30px'}),
+            dash_table.DataTable(
+                id='map-summary-table',
+                columns=[],  # filled in by callback
+                data=[],     # filled in by callback
+                style_table={'overflowX': 'auto'},
+                sort_action='native',
+                style_cell={'textAlign': 'center'},
+                style_header={'fontWeight': 'bold'}
+            ),
+            html.Br(),
+            html.H4("Corporation Performance by Map (Win %)", style={'marginTop': '40px'}),
+            html.Div(id='corp-map-summary-table')         
+        ]),
+
         dcc.Tab(label='Game Results', children=[
             html.Div(id='raw-data-table')
         ])        
@@ -357,6 +376,120 @@ def update_corp_summary_table(_):
             'backgroundColor': 'rgb(230, 230, 230)',
             'fontWeight': 'bold'
         }
+    )
+
+@app.callback(
+    Output('map-game-count', 'figure'),
+    Input('data-refresh-flag', 'data')
+)
+def update_map_game_count(_):
+    df = load_game_data()
+    map_counts = df[['Game', 'Map']].drop_duplicates().groupby('Map').count().reset_index()
+    fig = px.bar(map_counts, x='Map', y='Game', orientation='v', title='Game Count per Map')
+    fig.update_layout(yaxis_title='Number of Games', xaxis_title='Map')
+    return fig
+
+@app.callback(
+    Output('map-winrate', 'figure'),
+    Input('data-refresh-flag', 'data')
+)
+def update_map_winrate(_):
+    df = load_game_data()
+
+    # Only one row per player per game
+    win_data = df.groupby(['Map', 'Player'])['Winner'].agg(['sum', 'count']).reset_index()
+    win_data['Win %'] = 100 * win_data['sum'] / win_data['count']
+
+    fig = px.bar(win_data, x='Map', y='Win %', color='Player',
+                 barmode='group',
+                 title='Win Rate by Map and Player',
+                 color_discrete_map={'SB': 'blue', 'AV': 'orange'})
+
+    fig.update_layout(yaxis_title='Win %', xaxis_title='Map')
+    return fig
+
+@app.callback(
+    Output('map-avg-score', 'figure'),
+    Input('data-refresh-flag', 'data')
+)
+def update_map_avg_score(_):
+    df = load_game_data()
+
+    fig = px.box(df, x='Map', y='Score', color='Player',
+                 points='all',
+                 title='Score Distribution by Map and Player',
+                 color_discrete_map={'SB': 'blue', 'AV': 'orange'})
+
+    fig.update_layout(yaxis_title='Score', xaxis_title='Map')
+    return fig
+
+@app.callback(
+    Output('map-summary-table', 'data'),
+    Output('map-summary-table', 'columns'),
+    Input('data-refresh-flag', 'data')
+)
+def update_map_summary_table(_):
+    df = load_game_data()
+    summary = []
+
+    for map_name in sorted(df['Map'].unique()):
+        map_df = df[df['Map'] == map_name]
+        games = map_df['Game'].nunique()
+
+        sb_df = map_df[map_df['Player'] == 'SB']
+        av_df = map_df[map_df['Player'] == 'AV']
+
+        sb_wins = sb_df['Winner'].sum()
+        av_wins = av_df['Winner'].sum()
+
+        sb_win_pct = round(100 * sb_wins / len(sb_df), 1) if len(sb_df) else 0
+        av_win_pct = round(100 * av_wins / len(av_df), 1) if len(av_df) else 0
+
+        sb_avg = round(sb_df['Score'].mean(), 1) if len(sb_df) else 0
+        av_avg = round(av_df['Score'].mean(), 1) if len(av_df) else 0
+        total_avg = round(map_df['Score'].mean(), 1)
+
+        summary.append({
+            'Map': map_name,
+            'Games': games,
+            'SB Wins': int(sb_wins),
+            'AV Wins': int(av_wins),
+            'SB Win %': sb_win_pct,
+            'AV Win %': av_win_pct,
+            'SB Avg Score': sb_avg,
+            'AV Avg Score': av_avg,
+            'Avg Total Score': total_avg
+        })
+
+    columns = [{"name": col, "id": col} for col in summary[0].keys()] if summary else []
+    return summary, columns
+
+@app.callback(
+    Output('corp-map-summary-table', 'children'),
+    Input('data-refresh-flag', 'data')
+)
+def update_corp_map_summary(_):
+    df = load_game_data()
+    
+    grouped = df.groupby(['Map', 'Corporation']).agg(
+        Games=('Score', 'count'),
+        Wins=('Winner', 'sum'),
+        Avg_Score=('Score', 'mean')
+    ).reset_index()
+    
+    grouped['Win %'] = (grouped['Wins'] / grouped['Games'] * 100).round(1)
+    grouped['Avg_Score'] = grouped['Avg_Score'].round(1)
+
+    pivot = grouped.pivot(index='Corporation', columns='Map', values='Win %').fillna('-')
+    pivot = pivot.sort_index()
+
+    return dash_table.DataTable(
+        columns=[{'name': col, 'id': col} for col in pivot.reset_index().columns],
+        data=pivot.reset_index().to_dict('records'),
+        style_table={'overflowX': 'auto'},
+        sort_action='native',
+        style_cell={'textAlign': 'center'},
+        style_header={'fontWeight': 'bold'}
     )
 
 

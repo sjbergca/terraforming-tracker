@@ -161,11 +161,13 @@ def update_raw_data_table(_):
         data=df_display.to_dict('records'),
         sort_action="native",
         filter_action="native",
-        page_action="none",
+        page_size=25,  # LIMIT rows per page
+        page_action="native",  # ENABLE pagination
         style_table={'overflowX': 'auto'},
         style_cell={'textAlign': 'center', 'minWidth': '100px'},
         style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'}
     )
+
 
 @app.callback(
     Output('cumulative-winrate-graph', 'figure'),
@@ -475,27 +477,37 @@ def update_map_summary_table(_):
 )
 def update_corp_map_summary(_):
     df = load_game_data()
-    
-    grouped = df.groupby(['Map', 'Corporation']).agg(
-        Games=('Score', 'count'),
-        Wins=('Winner', 'sum'),
-        Avg_Score=('Score', 'mean')
-    ).reset_index()
-    
+
+    # Pre-aggregate only the necessary data
+    grouped = (
+        df.groupby(['Map', 'Corporation'])
+          .agg(Games=('Score', 'count'),
+               Wins=('Winner', 'sum'),
+               Avg_Score=('Score', 'mean'))
+          .reset_index()
+    )
+
     grouped['Win %'] = (grouped['Wins'] / grouped['Games'] * 100).round(1)
     grouped['Avg_Score'] = grouped['Avg_Score'].round(1)
 
-    pivot = grouped.pivot(index='Corporation', columns='Map', values='Win %').fillna('-')
-    pivot = pivot.sort_index()
+    # Pivot just Win %, keep it lightweight
+    pivot = grouped.pivot(index='Corporation', columns='Map', values='Win %')
+    pivot = pivot.fillna('—').sort_index()
+    pivot_df = pivot.reset_index()
 
-    return dash_table.DataTable(
-        columns=[{'name': col, 'id': col} for col in pivot.reset_index().columns],
-        data=pivot.reset_index().to_dict('records'),
-        style_table={'overflowX': 'auto'},
-        sort_action='native',
-        style_cell={'textAlign': 'center'},
-        style_header={'fontWeight': 'bold'}
-    )
+    # Limit size of DataTable display
+    return html.Div([
+        html.H4("Corporation Win % by Map"),
+        dash_table.DataTable(
+            columns=[{'name': col, 'id': col} for col in pivot_df.columns],
+            data=pivot_df.to_dict('records'),
+            page_size=20,
+            style_table={'overflowX': 'auto'},
+            sort_action='native',
+            style_cell={'textAlign': 'center'},
+            style_header={'fontWeight': 'bold'}
+        )
+    ])
 
 
 if __name__ == '__main__':

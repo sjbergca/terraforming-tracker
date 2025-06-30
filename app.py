@@ -93,7 +93,7 @@ app.layout = html.Div([
         dcc.Tab(label='Corporation Summary Table', children=[
             html.Div(id='corp-summary-table')
         ]),
-        dcc.Tab(label='Raw Data', children=[
+        dcc.Tab(label='Game Results', children=[
             html.Div(id='raw-data-table')
         ])        
     ])
@@ -125,17 +125,19 @@ def display_latest_game_date(_):
                     style={'fontSize': '18px'})
     ])
 
-
 @app.callback(
     Output('raw-data-table', 'children'),
     Input('data-refresh-flag', 'data')
 )
 def update_raw_data_table(_):
-    df = load_game_data()
+    df = pd.read_excel("games/games.xlsx", sheet_name="restart_Mar_2025", engine="openpyxl")
+    df = df.dropna(subset=['Date', 'Map', 'SB Corp.', 'AV. Corp.', 'SB Score', 'AV Score'])
+
+    df_display = df[['Date', 'Map', 'SB Corp.', 'AV. Corp.', 'SB Score', 'AV Score']]
 
     return dash_table.DataTable(
-        columns=[{"name": i, "id": i} for i in df.columns],
-        data=df.to_dict('records'),
+        columns=[{"name": i, "id": i} for i in df_display.columns],
+        data=df_display.to_dict('records'),
         sort_action="native",
         filter_action="native",
         page_action="native",

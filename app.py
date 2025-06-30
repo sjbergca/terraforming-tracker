@@ -1,10 +1,9 @@
 import os
-import dash_table
 import base64
 import io
 import pandas as pd
 import numpy as np
-from dash import Dash, dcc, html, Input, Output, State
+from dash import Dash, dcc, html, Input, Output, State, dash_table
 import plotly.graph_objects as go
 import plotly.express as px
 

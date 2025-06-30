@@ -97,6 +97,7 @@ app.layout = html.Div([
             dcc.Graph(id='map-game-count'),
             dcc.Graph(id='map-winrate'),
             dcc.Graph(id='map-avg-score'),
+            """
             html.H4("Map Summary Table", style={'marginTop': '30px'}),
             dash_table.DataTable(
                 id='map-summary-table',
@@ -107,6 +108,7 @@ app.layout = html.Div([
                 style_cell={'textAlign': 'center'},
                 style_header={'fontWeight': 'bold'}
             ),
+            """
             html.Br(),
             html.H4("Corporation Performance by Map (Win %)", style={'marginTop': '40px'}),
             html.Div(id='corp-map-summary-table')         

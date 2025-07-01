@@ -6,13 +6,29 @@ import numpy as np
 from dash import Dash, dcc, html, Input, Output, State, dash_table
 import plotly.graph_objects as go
 import plotly.express as px
+import plotly.io as pio
+
+pio.templates.default = "plotly"  # safe fallback
+
 
 # --- Load and transform the data ---
 def load_game_data():
     path = "games/games.csv"
     df = pd.read_csv(path)
+
+    # Clean column names: strip whitespace and remove dots
+    df.columns = df.columns.str.strip().str.replace('.', '', regex=False)
+
+    # Drop completely empty columns (usually labeled as 'Unnamed')
+    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+
+    # Drop rows missing essential fields
     df = df.dropna(subset=['Game #', 'SB Score', 'AV Score'])
 
+    # Ensure Date is datetime
+    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+
+    # Build a clean long-form DataFrame
     records = []
     for _, row in df.iterrows():
         records.append({
@@ -20,7 +36,7 @@ def load_game_data():
             'Date': row['Date'],
             'Map': row['Map'],
             'Player': 'SB',
-            'Corporation': row['SB Corp.'],
+            'Corporation': row['SB Corp'],
             'Score': row['SB Score'],
             'Winner': row['Winner'] == 'SB'
         })
@@ -29,7 +45,7 @@ def load_game_data():
             'Date': row['Date'],
             'Map': row['Map'],
             'Player': 'AV',
-            'Corporation': row['AV. Corp.'],
+            'Corporation': row['AV Corp'],
             'Score': row['AV Score'],
             'Winner': row['Winner'] == 'AV'
         })
@@ -98,20 +114,16 @@ app.layout = html.Div([
             dcc.Graph(id='map-winrate'),
             dcc.Graph(id='map-avg-score'),
             
-#            html.H4("Map Summary Table", style={'marginTop': '30px'}),
-#            dash_table.DataTable(
-#                id='map-summary-table',
-#                columns=[],  # filled in by callback
-#                data=[],     # filled in by callback
-#                style_table={'overflowX': 'auto'},
-#                sort_action='native',
-#                style_cell={'textAlign': 'center'},
-#                style_header={'fontWeight': 'bold'}
-#            ),
-
-            html.Br(),
-            html.H4("Corporation Performance by Map (Win %)", style={'marginTop': '40px'}),
-            html.Div(id='corp-map-summary-table')         
+            html.H4("Map Summary Table", style={'marginTop': '30px'}),
+            dash_table.DataTable(
+                id='map-summary-table',
+                columns=[],  # filled in by callback
+                data=[],     # filled in by callback
+                style_table={'overflowX': 'auto'},
+                sort_action='native',
+                style_cell={'textAlign': 'center'},
+                style_header={'fontWeight': 'bold'}
+            )        
         ]),
 
         dcc.Tab(label='Game Results', children=[
@@ -154,18 +166,19 @@ def display_latest_game_date(_):
     Input('data-refresh-flag', 'data')
 )
 def update_raw_data_table(_):
-    df = pd.read_excel("games/games.xlsx", sheet_name="restart_Mar_2025", engine="openpyxl")
-    df = df.dropna(subset=['Date', 'Map', 'SB Corp.', 'AV. Corp.', 'SB Score', 'AV Score'])
-    df['Date'] = pd.to_datetime(df['Date']).dt.date  #strime time from datetime
-    df_display = df[['Date', 'Map', 'SB Corp.', 'AV. Corp.', 'SB Score', 'AV Score']]
+    df = pd.read_csv("games/games.csv")
+    df['Date'] = pd.to_datetime(df['Date']).dt.date
+
+    # Keep only the relevant columns
+    cols_to_display = ['Date', 'Map', 'SB Corp.', 'AV. Corp.', 'SB Score', 'AV Score']
+    df_display = df[cols_to_display]
 
     return dash_table.DataTable(
         columns=[{"name": i, "id": i} for i in df_display.columns],
         data=df_display.to_dict('records'),
         sort_action="native",
         filter_action="native",
-        page_size=25,  # LIMIT rows per page
-        page_action="native",  # ENABLE pagination
+        page_size=50,
         style_table={'overflowX': 'auto'},
         style_cell={'textAlign': 'center', 'minWidth': '100px'},
         style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'}
@@ -305,43 +318,56 @@ def update_score_graphs(bins, _):
 
     return pdf_fig, cdf_fig, diff_pdf_fig, diff_cdf_fig, total_pdf_fig, total_cdf_fig
 
+
+
 @app.callback(
     Output('corp-matchup-count', 'figure'),
     Output('corp-matchup-winrate', 'figure'),
-    Output('corp-boxplot', 'figure'),
     Input('data-refresh-flag', 'data')
 )
 def update_corp_vs_corp(_):
-    df = pd.read_excel("games/games.xlsx", sheet_name="restart_Mar_2025", engine="openpyxl")
+    df = pd.read_csv("games/games.csv")  # read raw data directly
     df = df.dropna(subset=['SB Corp.', 'AV. Corp.', 'Winner'])
 
+    # Matchup count
     count_matrix = df.groupby(['SB Corp.', 'AV. Corp.']).size().unstack(fill_value=0)
     fig_count = px.imshow(count_matrix,
                           labels=dict(x="AV Corp.", y="SB Corp.", color="Game Count"),
                           title="Corp vs Corp Matchup Count",
-                          height=800, width=800)
+                          width=700, height=700)
 
-    win_df = df.copy()
-    win_df['SB Win'] = (df['Winner'] == 'SB').astype(int)
-    winrate_matrix = win_df.pivot_table(index='SB Corp.', columns='AV. Corp.', values='SB Win', aggfunc='mean')
+    # Winrate from SB perspective
+    df['SB Win'] = (df['Winner'] == 'SB').astype(int)
+    winrate_matrix = df.pivot_table(index='SB Corp.', columns='AV. Corp.', values='SB Win', aggfunc='mean')
     fig_winrate = px.imshow(winrate_matrix,
-                            labels=dict(x="AV Corp.", y="SB Corp.", color="SB Win Rate"),
-                            title="Corp vs Corp Win Rate (SB Perspective)",
-                            color_continuous_scale='RdBu', zmin=0, zmax=1,
-                            height=800, width=800)
+                             labels=dict(x="AV Corp.", y="SB Corp.", color="SB Win Rate"),
+                             title="Corp vs Corp Win Rate (SB Perspective)",
+                             color_continuous_scale='RdBu', zmin=0, zmax=1,
+                             width=700, height=700)
 
-    player_df = load_game_data()
-    box_fig = px.box(player_df, x='Corporation', y='Score', color='Player', points='all',
-                    color_discrete_map={"SB": "blue", "AV": "orange"},
-                    title='Score Distribution by Corporation and Player')
+    return fig_count, fig_winrate
 
-    box_fig.update_layout(
-        height=800,
-        width=1200,
-        xaxis={'categoryorder': 'category ascending'}
+@app.callback(
+    Output('corp-boxplot', 'figure'),
+    Input('data-refresh-flag', 'data')
+)
+def update_corp_boxplot(_):
+    df = load_game_data()  # Load cleaned, long-form data
+
+    fig = px.box(
+        df,
+        x='Corporation',
+        y='Score',
+        color='Player',
+        title='Score Distribution by Corporation',
+        points="all"  # Show all points overlaid
     )
+    fig.update_layout(xaxis_tickangle=-45)
 
-    return fig_count, fig_winrate, box_fig
+    return fig
+
+
+
 
 @app.callback(
     Output('corp-summary-table', 'children'),
@@ -391,9 +417,17 @@ def update_corp_summary_table(_):
 )
 def update_map_game_count(_):
     df = load_game_data()
-    map_counts = df[['Game', 'Map']].drop_duplicates().groupby('Map').count().reset_index()
-    fig = px.bar(map_counts, x='Map', y='Game', orientation='v', title='Game Count per Map')
-    fig.update_layout(yaxis_title='Number of Games', xaxis_title='Map')
+    map_counts = df['Map'].value_counts().reset_index()
+    map_counts.columns = ['Map', 'Game Count']
+    
+    fig = px.bar(
+        map_counts,
+        x='Map',
+        y='Game Count',
+        orientation='v',
+        title='Game Count per Map',
+        template='plotly'
+    )
     return fig
 
 @app.callback(
@@ -430,7 +464,7 @@ def update_map_avg_score(_):
     fig.update_layout(yaxis_title='Score', xaxis_title='Map')
     return fig
 
-"""
+
 @app.callback(
     Output('map-summary-table', 'data'),
     Output('map-summary-table', 'columns'),
@@ -471,9 +505,9 @@ def update_map_summary_table(_):
 
     columns = [{"name": col, "id": col} for col in summary[0].keys()] if summary else []
     return summary, columns
-"""
+
     
-"""
+
 @app.callback(
     Output('corp-map-summary-table', 'children'),
     Input('data-refresh-flag', 'data')
@@ -500,18 +534,18 @@ def update_corp_map_summary(_):
 
     # Limit size of DataTable display
     return html.Div([
-        html.H4("Corporation Win % by Map"),
+        html.H4("Corporation Perfromance by Map (Win %)"),
         dash_table.DataTable(
             columns=[{'name': col, 'id': col} for col in pivot_df.columns],
             data=pivot_df.to_dict('records'),
-            page_size=20,
+            page_size=30,
             style_table={'overflowX': 'auto'},
             sort_action='native',
             style_cell={'textAlign': 'center'},
             style_header={'fontWeight': 'bold'}
         )
     ])
-"""
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8050))

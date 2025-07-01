@@ -9,8 +9,8 @@ import plotly.express as px
 
 # --- Load and transform the data ---
 def load_game_data():
-    path = "games/games.xlsx"
-    df = pd.read_excel(path, sheet_name="restart_Mar_2025", engine="openpyxl")
+    path = "games/games.csv"
+    df = pd.read_csv(path)
     df = df.dropna(subset=['Game #', 'SB Score', 'AV Score'])
 
     records = []
@@ -130,9 +130,12 @@ def save_uploaded_file(contents, filename):
         content_type, content_string = contents.split(',')
         decoded = base64.b64decode(content_string)
         os.makedirs("games", exist_ok=True)
-        with open("games/games.xlsx", "wb") as f:
+
+        with open("games/games.csv", "wb") as f:
             f.write(decoded)
+
     return True
+
 
 @app.callback(
     Output('latest-date-display', 'children'),

@@ -109,11 +109,7 @@ app.layout = html.Div([
         dcc.Tab(label='Corporation Summary Table', children=[
             html.Div(id='corp-summary-table')
         ]),
-        dcc.Tab(label='Map Insights', children=[
-            dcc.Graph(id='map-game-count'),
-            dcc.Graph(id='map-winrate'),
-            dcc.Graph(id='map-avg-score'),
-            
+        dcc.Tab(label='Map Insights', children=[                      
             html.H4("Map Summary Table", style={'marginTop': '30px'}),
             dash_table.DataTable(
                 id='map-summary-table',
@@ -124,6 +120,9 @@ app.layout = html.Div([
                 style_cell={'textAlign': 'center'},
                 style_header={'fontWeight': 'bold'}
             ),
+            dcc.Graph(id='map-avg-score'),
+
+
             html.Div(id='corp-map-summary-table')        
         ]),
 
@@ -416,25 +415,6 @@ def update_corp_summary_table(_):
             'fontWeight': 'bold'
         }
     )
-
-@app.callback(
-    Output('map-game-count', 'figure'),
-    Input('data-refresh-flag', 'data')
-)
-def update_map_game_count(_):
-    df = load_game_data()
-    map_counts = df['Map'].value_counts().reset_index()
-    map_counts.columns = ['Map', 'Game Count']
-    
-    fig = px.bar(
-        map_counts,
-        x='Map',
-        y='Game Count',
-        orientation='v',
-        title='Game Count per Map',
-        template='plotly'
-    )
-    return fig
 
 @app.callback(
     Output('map-winrate', 'figure'),

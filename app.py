@@ -123,7 +123,8 @@ app.layout = html.Div([
                 sort_action='native',
                 style_cell={'textAlign': 'center'},
                 style_header={'fontWeight': 'bold'}
-            )        
+            ),
+            html.Div(id='corp-map-summary-table')        
         ]),
 
         dcc.Tab(label='Game Results', children=[

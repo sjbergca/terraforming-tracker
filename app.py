@@ -348,6 +348,7 @@ def update_corp_vs_corp(_):
 
     return fig_count, fig_winrate
 
+#box plot by corporation
 @app.callback(
     Output('corp-boxplot', 'figure'),
     Input('data-refresh-flag', 'data')
@@ -355,19 +356,23 @@ def update_corp_vs_corp(_):
 def update_corp_boxplot(_):
     df = load_game_data()  # Load cleaned, long-form data
 
+    # Sort corporations alphabetically
+    corp_order = sorted(df['Corporation'].dropna().unique())
+
     fig = px.box(
         df,
         x='Corporation',
         y='Score',
         color='Player',
         title='Score Distribution by Corporation',
-        points="all"  # Show all points overlaid
+        points="all",
+        category_orders={'Corporation': corp_order},
+        color_discrete_map={'AV': 'orange', 'SB': 'blue'}
     )
+
     fig.update_layout(xaxis_tickangle=-45)
 
     return fig
-
-
 
 
 @app.callback(

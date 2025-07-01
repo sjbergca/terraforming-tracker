@@ -1,115 +1,89 @@
-# Terraforming Mars Game Tracker
+Terraforming Mars Tracker
+A custom-built dashboard for tracking head-to-head games of Terraforming Mars between SB and AV. Built with Dash and Plotly.
 
-This project is a web-based dashboard that visualizes and tracks two-player Terraforming Mars game data. It is built using **Python**, **Dash**, and **Plotly**, and deployed via **Render** for easy public access.
+🌐 Launch the App on Render
+Go to Render Dashboard
 
----
+Select your service (e.g. terraforming-tracker)
 
-## 🌐 Live Web Dashboard
+Click "Open in Browser" to launch the live dashboard
 
-You can view the dashboard live at:  https://terraforming-tracker.onrender.com/
+✅ The app auto-reloads when you push updates to the GitHub repo.
 
-👉 **[Render Dashboard](https://dashboard.render.com/web/)**
+🔁 Updating Data (CSV Method)
+Save your latest spreadsheet as:
 
-> ⚠️ Note: You must **log in to your Render account** to manage the deployment. The live site URL is accessible via your Render service.
+bash
+Copy
+Edit
+games/games.csv
+Use the included batch script (e.g. copy_data.bat) to overwrite the existing file:
 
----
+Make sure Excel is closed
 
-## 🚀 How to Run the App Locally
+Run the script from your office desktop (not your laptop)
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/YOUR_USERNAME/terraforming-tracker.git
-cd terraforming-tracker
-```
+Push the updated data to GitHub (see GitHub instructions below)
 
-### 2. Create a Virtual Environment (Optional but Recommended)
-```bash
+🔧 Local Testing Instructions
+To test locally without Render:
+
+(One-time) Create and activate a virtual environment:
+
+bash
+Copy
+Edit
 python -m venv venv
-venv\Scripts\activate
-```
+venv\Scripts\activate  # Windows
+Install dependencies:
 
-### 3. Install Dependencies
-```bash
+bash
+Copy
+Edit
 pip install -r requirements.txt
-```
+Run the app:
 
-### 4. Run the App
-```bash
+bash
+Copy
+Edit
 python app.py
-```
+Then open your browser to http://127.0.0.1:8050
 
----
+🛠 GitHub Instructions
+To commit and push local changes to GitHub:
 
-## 🔄 How to Upload Updated Game Data
+bash
+Copy
+Edit
+git add .
+git commit -m "💾 Updated data and dashboard"
+git push
+To sync your local copy with any online GitHub changes:
 
-1. Launch the web app.
-2. Use the **"Upload Spreadsheet"** drag-and-drop area at the top.
-3. Upload your `.xlsx` game tracking file. It will update the dashboard in real time.
-4. The file persists until you upload another.
+bash
+Copy
+Edit
+git pull
+If you get a merge error, try:
+git stash, git pull, then git stash pop
 
----
+⚙️ Performance Tips
+Using .csv instead of .xlsx drastically reduces memory usage
 
-## 🧠 GitHub Instructions (Pushing Your Code Changes)
+Avoid loading unnecessary tabs or hidden sheets in Excel
 
-To save and push your code (including Dash app or VBA macros, etc.):
+Keep only the required data columns and games in games.csv
 
-```bash
-git status                    # check changes
-git add .                     # stage changes
-git commit -m "Your message"  # commit changes
-git push                      # push to GitHub
-```
+📊 Dashboard Features
+Cumulative win % over time
 
-You can do this manually or use an IDE like **VS Code** or **GitHub Desktop**.
+Score distributions (PDF, CDF, combined scores, margins)
 
----
+Player summaries including win streaks and score ranges
 
-## 📋 Updating Game Data via Copy Script (Preferred)
+Corp vs Corp matchup matrix
 
-Use this method if you're copying from a **master Excel file** (e.g., in OneDrive) to the working app folder (`games/games.xlsx`), and want to commit & push it automatically.
+Corporation performance by map
 
-### ✅ Steps:
-
-1. Ensure **Excel is closed** — the file cannot be copied if it's open!
-2. Double-click the script:
-   ```
-   update_games_and_push.bat
-   ```
-   This will:
-   - Copy the latest spreadsheet from your OneDrive
-   - Overwrite `games/games.xlsx`
-   - Commit and push the update to GitHub
-
-### ⚠️ Important:
-
-- This script **must be run from your office desktop**.
-- Your Git credentials must be cached or authenticated on that machine.
-
----
-
-## 📁 Project Structure
-
-```
-terraforming_tracker/
-├── app.py                      # Main Dash app
-├── copy_data.py                # Copies updated Excel file and commits
-├── update_games_and_push.bat   # Single-click script for updates
-├── requirements.txt            # Python dependencies
-├── games/
-│   └── games.xlsx              # Working copy of the spreadsheet
-└── README.md                   # You are here!
-```
-
----
-
-## 📝 Future Ideas
-
-- [ ] Highlight map options stats
-- [ ] Player filters on graphs and tables
-- [ ] Export filtered data
-- [ ] Add tag system for notes (e.g., draft used, promos, etc.)
-
----
-
-
+Game results table with sorting/filtering
 

@@ -111,5 +111,5 @@ terraforming_tracker/
 
 ---
 
-Built for maximum nerd cred. 🌍💾📊
+
 

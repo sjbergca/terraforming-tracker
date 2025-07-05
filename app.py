@@ -89,6 +89,17 @@ app.layout = html.Div([
     dcc.Tabs([
         dcc.Tab(label='Player Summary', children=[
             dcc.Graph(id='cumulative-winrate-graph'),
+            html.Label("Rolling Average Window (Games)"),
+            dcc.Slider(
+                id='rolling-window-slider',
+                min=1,
+                max=20,
+                step=1,
+                value=7,
+                marks={i: str(i) for i in range(1, 21)},
+            ),
+            dcc.Graph(id='score-trend-line'),
+            dcc.Graph(id='cumulative-win-margin'),
             html.Div(id='summary-stats', style={'marginTop': '20px'})
         ]),
         dcc.Tab(label='Score Distributions', children=[
@@ -269,6 +280,77 @@ def update_summary_panel(_):
     }
 
     return fig, summary
+
+@app.callback(
+    Output('score-trend-line', 'figure'),
+    Input('data-refresh-flag', 'data'),
+    Input('rolling-window-slider', 'value')
+)
+def update_score_trend(_, window):
+    df = pd.read_csv("games/games.csv")
+    df = df.dropna(subset=["Date", "SB Score", "AV Score"])
+    df['Date'] = pd.to_datetime(df['Date'])
+    df = df.sort_values("Date")
+
+    # Rolling averages
+    trend = df[['SB Score', 'AV Score']].rolling(window=window, min_periods=1).mean()
+    trend['Date'] = df['Date'].values
+
+    # Rename for legend clarity
+    trend = trend.rename(columns={
+        "SB Score": "SB Score (windowed)",
+        "AV Score": "AV Score (windowed)"
+    })
+
+    # Start figure
+    fig = px.line(
+        trend,
+        x='Date',
+        y=["SB Score (windowed)", "AV Score (windowed)"],
+        title=f"{window}-Game Rolling Average of Scores Over Time"
+    )
+
+    # Manually override the line colors
+    fig.for_each_trace(
+        lambda t: t.update(line=dict(color='blue')) if t.name == "SB Score (windowed)"
+        else t.update(line=dict(color='orange')) if t.name == "AV Score (windowed)"
+        else None
+    )
+
+    # Add raw score scatter points
+    fig.add_scatter(x=df['Date'], y=df['SB Score'], mode='markers', name='SB Raw', marker=dict(color='blue', size=6, opacity=0.6))
+    fig.add_scatter(x=df['Date'], y=df['AV Score'], mode='markers', name='AV Raw', marker=dict(color='orange', size=6, opacity=0.6))
+
+    fig.update_layout(
+        xaxis_title="Date",
+        yaxis_title="Score"
+    )
+
+    return fig
+
+@app.callback(
+    Output('cumulative-win-margin', 'figure'),
+    Input('data-refresh-flag', 'data')
+)
+def update_cumulative_win_margin(_):
+    df = pd.read_csv("games/games.csv")
+    df = df.dropna(subset=["Date", "SB Score", "AV Score"])
+    df['Date'] = pd.to_datetime(df['Date'])
+
+    df = df.sort_values("Date")
+    df['Net Margin'] = df['SB Score'] - df['AV Score']
+    df['Cumulative Margin'] = df['Net Margin'].cumsum()
+
+    fig = px.line(
+        df,
+        x='Date',
+        y='Cumulative Margin',
+        title='Cumulative Win Margin (SB – AV)',
+        markers=True
+    )
+    fig.update_layout(xaxis_title="Date", yaxis_title="Cumulative Net Points")
+    return fig
+
 
 @app.callback(
     Output('score-distribution', 'figure'),

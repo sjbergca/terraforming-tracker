@@ -557,7 +557,7 @@ def update_map_summary_table(_):
 
         sb_avg = round(sb_df['Score'].mean(), 1) if len(sb_df) else 0
         av_avg = round(av_df['Score'].mean(), 1) if len(av_df) else 0
-        total_avg = round(map_df['Score'].mean(), 1)
+        total_avg = round(map_df['Score'].mean() * 2, 1)
 
         summary.append({
             'Map': map_name,

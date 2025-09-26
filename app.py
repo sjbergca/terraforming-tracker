@@ -466,6 +466,9 @@ def update_corp_summary_table(_):
     corp_summary = []
     for corp in sorted(df['Corporation'].unique()):
         row = {'Corporation': corp}
+        sb_games = 0
+        av_games = 0
+        
         for player in ['SB', 'AV']:
             player_df = df[(df['Corporation'] == corp) & (df['Player'] == player)]
             games = len(player_df)
@@ -475,6 +478,12 @@ def update_corp_summary_table(_):
             row[f'{player} Wins'] = wins
             row[f'{player} Win %'] = win_pct
 
+            if player == 'SB':
+                sb_games = games
+            else:
+                av_games = games
+
+
         both_df = df[df['Corporation'] == corp]
         total_games = len(both_df)
         total_wins = both_df['Winner'].sum()
@@ -482,21 +491,39 @@ def update_corp_summary_table(_):
         row['Total Games'] = total_games
         row['Total Wins'] = total_wins
         row['Total Win %'] = overall_win_pct
+        row['Game Play Diff'] = sb_games - av_games
         corp_summary.append(row)
 
+    # Build columns with explicit numeric typing
+    columns = []
+    for col in corp_summary[0].keys():
+        if col == "Game Play Diff":
+            columns.append({"name": col, "id": col, "type": "numeric"})
+        else:
+            columns.append({"name": col, "id": col})
+
     return dash_table.DataTable(
-        columns=[
-            {'name': col, 'id': col} for col in corp_summary[0].keys()
-        ],
+        columns=columns,
         data=corp_summary,
         sort_action='native',
+        sort_mode='multi',
         style_table={'overflowX': 'auto'},
         style_cell={'textAlign': 'center'},
-        style_header={
-            'backgroundColor': 'rgb(230, 230, 230)',
-            'fontWeight': 'bold'
-        }
+        style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
+        style_data_conditional=[
+            {
+                'if': {'filter_query': '{Game Play Diff} > 5', 'column_id': 'Game Play Diff'},
+                'color': 'green',
+                'fontWeight': 'bold'
+            },
+            {
+                'if': {'filter_query': '{Game Play Diff} < -5', 'column_id': 'Game Play Diff'},
+                'color': 'red',
+                'fontWeight': 'bold'
+            }
+        ]
     )
+
 
 @app.callback(
     Output('map-winrate', 'figure'),

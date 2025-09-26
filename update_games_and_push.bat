@@ -6,5 +6,7 @@ REM call venv\Scripts\activate
 
 python copy_data.py
 
+call trigger_deploy.bat
+
 echo ✅ Done.
 pause

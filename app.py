@@ -532,6 +532,7 @@ def update_corp_summary_table(_):
 def update_map_winrate(_):
     df = load_game_data()
 
+
     # Only one row per player per game
     win_data = df.groupby(['Map', 'Player'])['Winner'].agg(['sum', 'count']).reset_index()
     win_data['Win %'] = 100 * win_data['sum'] / win_data['count']

@@ -512,7 +512,7 @@ def update_corp_summary_table(_):
         style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
         style_data_conditional=[
             {
-                'if': {'filter_query': '{Game Play Diff} > 5', 'column_id': 'Game Play Diff'},
+                'if': {'filter_query': '{Game Play Diff} > 4', 'column_id': 'Game Play Diff'},
                 'color': 'blue',
                 'fontWeight': 'bold'
             },

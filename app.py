@@ -517,7 +517,7 @@ def update_corp_summary_table(_):
                 'fontWeight': 'bold'
             },
             {
-                'if': {'filter_query': '{Game Play Diff} < -4, 'column_id': 'Game Play Diff'},
+                'if': {'filter_query': '{Game Play Diff} < -4', 'column_id': 'Game Play Diff'},
                 'color': 'orange',
                 'fontWeight': 'bold'
             }

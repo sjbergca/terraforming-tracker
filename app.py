@@ -263,10 +263,10 @@ def update_summary_panel(_):
             html.P(f"Wins: {wins} ({win_rate}%)"),
             html.P(f"Average Score: {avg_score}"),
             html.P(f"Median Score: {median_score}"),
-            html.P(f"Min Score: {min_score}"),
             html.P(f"Max Score: {max_score}"),
+            html.P(f"Min Score: {min_score}"),
             html.P(f"Largest Win Margin: {max_win_margin}"),
-            html.P(f"Worst Loss Margin: {max_loss_margin}"),
+            #html.P(f"Worst Loss Margin: {max_loss_margin}"),
             html.P(f"Current Streak: {streak_count} {streak_type}{'s' if streak_count > 1 else ''}")
         ], style={'marginRight': '40px', 'display': 'inline-block'}))
 
@@ -596,7 +596,7 @@ def update_map_summary_table(_):
             'AV Win %': av_win_pct,
             'SB Avg Score': sb_avg,
             'AV Avg Score': av_avg,
-            'Avg Total Score': total_avg
+            'Avg Combined Score': total_avg
         })
 
     columns = [{"name": col, "id": col} for col in summary[0].keys()] if summary else []

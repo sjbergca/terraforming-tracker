@@ -194,7 +194,7 @@ def update_raw_data_table(_):
         filter_action="native",
         page_size=50,
         style_table={'overflowX': 'auto'},
-        style_cell={'textAlign': 'center', 'minWidth': '100px'},
+        style_cell={'textAlign': 'center', 'minWidth': '80px'},
         style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'}
     )
 

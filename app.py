@@ -424,7 +424,7 @@ def update_corp_vs_corp(_):
     fig_winrate = px.imshow(winrate_matrix,
                              labels=dict(x="AV Corp.", y="SB Corp.", color="SB Win Rate"),
                              title="Corp vs Corp Win Rate (SB Perspective)",
-                             color_continuous_scale='RdBu', zmin=0, zmax=1,
+                             color_continuous_scale='Rainbow', zmin=0, zmax=1,
                              width=700, height=700)
 
     return fig_count, fig_winrate

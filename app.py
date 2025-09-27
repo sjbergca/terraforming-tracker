@@ -180,8 +180,11 @@ def update_raw_data_table(_):
     df = pd.read_csv("games/games.csv")
     df['Date'] = pd.to_datetime(df['Date']).dt.date
 
+    #Add score difference column
+    df['Score Diff (SB-AV)'] = df['SB Score'] - df['AV Score']
+
     # Keep only the relevant columns
-    cols_to_display = ['Date', 'Map', 'SB Corp.', 'AV. Corp.', 'SB Score', 'AV Score']
+    cols_to_display = ['Date', 'Map', 'SB Corp.', 'AV. Corp.', 'SB Score', 'AV Score','Score Diff (SB-AV)']
     df_display = df[cols_to_display]
 
     return dash_table.DataTable(

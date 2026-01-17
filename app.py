@@ -471,6 +471,10 @@ def update_corp_play_count_diverging(_, sort_by):
     # Count games per corporation per player
     corp_counts = df.groupby(['Corporation', 'Player']).size().unstack(fill_value=0)
     
+    # Default to 'SB' if sort_by is None
+    if sort_by is None:
+        sort_by = 'SB'
+
     # Sort based on dropdown selection
     if sort_by == 'SB':
         corp_counts = corp_counts.sort_values('SB', ascending=True)

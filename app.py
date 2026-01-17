@@ -493,7 +493,7 @@ def update_corp_play_count_diverging(_, sort_by):
     elif sort_by == 'AV':
         corp_counts = corp_counts.sort_values('AV', ascending=True)
     else:  # alphabetical
-        corp_counts = corp_counts.sort_index()
+        corp_counts = corp_counts.sort_index(ascending=False)
     
     # Create diverging bar chart
     fig = go.Figure()

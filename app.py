@@ -118,10 +118,22 @@ app.layout = html.Div([
             dcc.Graph(id='corp-boxplot')
         ]),
         dcc.Tab(label='Corporation Summary Table', children=[
+            html.Label("Sort corporations by:"),
+            dcc.Dropdown(
+                id='corp-sort-dropdown',
+                options=[
+                    {'label': 'SB Games', 'value': 'SB'},
+                    {'label': 'AV Games', 'value': 'AV'},
+                    {'label': 'Alphabetical', 'value': 'alpha'}
+                ],
+                value='SB',
+                clearable=False,
+                style={'width': '200px', 'marginBottom': '10px'}
+            ),
             dcc.Graph(id='corp-play-count-diverging'),
             html.Div(id='corp-summary-table')
         ]),
-        dcc.Tab(label='Map Insights', children=[                      
+        dcc.Tab(label='Map Insights', children=[                 
             html.H4("Map Summary Table", style={'marginTop': '30px'}),
             dash_table.DataTable(
                 id='map-summary-table',
@@ -591,27 +603,6 @@ def update_corp_summary_table(_):
         ]
     )
 
-
-@app.callback(
-    Output('map-winrate', 'figure'),
-    Input('data-refresh-flag', 'data')
-)
-def update_map_winrate(_):
-    df = load_game_data()
-
-
-    # Only one row per player per game
-    win_data = df.groupby(['Map', 'Player'])['Winner'].agg(['sum', 'count']).reset_index()
-    win_data['Win %'] = 100 * win_data['sum'] / win_data['count']
-
-    fig = px.bar(win_data, x='Map', y='Win %', color='Player',
-                 barmode='group',
-                 title='Win Rate by Map and Player',
-                 color_discrete_map={'SB': 'blue', 'AV': 'orange'})
-
-    fig.update_layout(yaxis_title='Win %', xaxis_title='Map')
-    return fig
-
 @app.callback(
     Output('map-avg-score', 'figure'),
     Input('data-refresh-flag', 'data')
@@ -712,4 +703,5 @@ def update_corp_map_summary(_):
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8050))
-    app.run(host="0.0.0.0", port=port)
+    debug_mode = os.environ.get("DEBUG", "False") == "True"
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)

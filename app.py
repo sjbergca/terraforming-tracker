@@ -118,6 +118,7 @@ app.layout = html.Div([
             dcc.Graph(id='corp-boxplot')
         ]),
         dcc.Tab(label='Corporation Summary Table', children=[
+            dcc.Graph(id='corp-play-count-diverging'),
             html.Div(id='corp-summary-table')
         ]),
         dcc.Tab(label='Map Insights', children=[                      
@@ -458,6 +459,57 @@ def update_corp_boxplot(_):
 
     return fig
 
+#diverging plot for # times corps played
+@app.callback(
+    Output('corp-play-count-diverging', 'figure'),
+    Input('data-refresh-flag', 'data')
+)
+def update_corp_play_count_diverging(_):
+    df = load_game_data()
+    
+    # Count games per corporation per player
+    corp_counts = df.groupby(['Corporation', 'Player']).size().unstack(fill_value=0)
+    corp_counts = corp_counts.sort_values('SB', ascending=True)  # Sort by SB count
+    
+    # Create diverging bar chart
+    fig = go.Figure()
+    
+    # SB bars go left (negative values)
+    fig.add_trace(go.Bar(
+        y=corp_counts.index,
+        x=-corp_counts['SB'],
+        name='SB',
+        orientation='h',
+        marker=dict(color='blue'),
+        text=corp_counts['SB'],
+        textposition='auto',
+    ))
+    
+    # AV bars go right (positive values)
+    fig.add_trace(go.Bar(
+        y=corp_counts.index,
+        x=corp_counts['AV'],
+        name='AV',
+        orientation='h',
+        marker=dict(color='orange'),
+        text=corp_counts['AV'],
+        textposition='auto',
+    ))
+    
+    fig.update_layout(
+        title='Corporation Play Count by Player',
+        xaxis=dict(
+            title='Number of Games',
+            tickvals=list(range(-max(corp_counts['SB']), max(corp_counts['AV'])+1, 2)),
+            ticktext=[str(abs(x)) for x in range(-max(corp_counts['SB']), max(corp_counts['AV'])+1, 2)]
+        ),
+        yaxis=dict(title='Corporation'),
+        barmode='overlay',
+        height=max(400, len(corp_counts) * 25),  # Dynamic height based on number of corps
+        showlegend=True
+    )
+    
+    return fig
 
 @app.callback(
     Output('corp-summary-table', 'children'),

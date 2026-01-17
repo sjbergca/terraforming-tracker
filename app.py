@@ -462,14 +462,22 @@ def update_corp_boxplot(_):
 #diverging plot for # times corps played
 @app.callback(
     Output('corp-play-count-diverging', 'figure'),
-    Input('data-refresh-flag', 'data')
+    Input('data-refresh-flag', 'data'),
+    Input('corp-sort-dropdown', 'value')
 )
-def update_corp_play_count_diverging(_):
+def update_corp_play_count_diverging(_, sort_by):
     df = load_game_data()
     
     # Count games per corporation per player
     corp_counts = df.groupby(['Corporation', 'Player']).size().unstack(fill_value=0)
-    corp_counts = corp_counts.sort_values('SB', ascending=True)  # Sort by SB count
+    
+    # Sort based on dropdown selection
+    if sort_by == 'SB':
+        corp_counts = corp_counts.sort_values('SB', ascending=True)
+    elif sort_by == 'AV':
+        corp_counts = corp_counts.sort_values('AV', ascending=True)
+    else:  # alphabetical
+        corp_counts = corp_counts.sort_index()
     
     # Create diverging bar chart
     fig = go.Figure()
